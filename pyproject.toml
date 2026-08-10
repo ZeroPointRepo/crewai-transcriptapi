@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "crewai-transcriptapi"
+version = "0.1.0"
+description = "CrewAI tools for TranscriptAPI: fetch YouTube transcripts and search YouTube videos and channels from CrewAI agents."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Zero Point Studio", email = "hello@transcriptapi.com" }]
+keywords = [
+  "crewai",
+  "crewai-tools",
+  "transcriptapi",
+  "youtube",
+  "youtube-transcript",
+  "transcript",
+  "youtube-api",
+  "ai-agent",
+  "llm",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = ["crewai>=0.80.0", "requests>=2.31.0", "pydantic>=2.0.0"]
+
+[project.urls]
+Homepage = "https://transcriptapi.com"
+Documentation = "https://transcriptapi.com/docs"
+Repository = "https://github.com/ZeroPointRepo/crewai-transcriptapi"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crewai_transcriptapi"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE", "pyproject.toml"]
