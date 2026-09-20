@@ -4,7 +4,7 @@
 
 ## Why this package
 
-Give a CrewAI agent eyes and ears on YouTube without shelling out to `yt-dlp` (blocked on most cloud IPs), scraping HTML, or juggling the Google YouTube Data API and its quota. [TranscriptAPI](https://transcriptapi.com) is a hosted backend built for this: transcript extraction, video search, and video metadata, wrapped here as three [CrewAI](https://www.crewai.com/) tools that drop straight into an `Agent`'s `tools` list.
+Give a CrewAI agent eyes and ears on YouTube without shelling out to `yt-dlp`, scraping HTML, or juggling the Google YouTube Data API and its quota. [TranscriptAPI](https://transcriptapi.com) is a hosted backend built for this: transcript extraction, video search, and video metadata, wrapped here as three [CrewAI](https://www.crewai.com/) tools that drop straight into an `Agent`'s `tools` list.
 
 This package is deliberately **curated**, not a full mirror of the API: three tools cover the core research loop (find a video, learn about it, read what was said in it). See [The full TranscriptAPI surface](#the-full-transcriptapi-surface) below for the rest (channel browsing, playlists, community posts) via the REST API or MCP.
 
@@ -64,7 +64,7 @@ The agent can then search for videos on a topic and fetch each transcript for su
 
 ### Research crew example: search, screen, then transcribe
 
-Adding `TranscriptAPIVideoMetadataTool` lets the agent screen search results (view count, publish date, duration) before spending a credit on a transcript it doesn't need:
+Adding `TranscriptAPIVideoMetadataTool` lets the agent screen search results (view count, publish date) before spending a credit on a transcript it doesn't need:
 
 ```python
 from crewai import Agent, Task, Crew
@@ -118,7 +118,7 @@ if result["success"]:
 
 ## Use cases
 
-- **Check facts without spending a call on its transcript.** `TranscriptAPIVideoMetadataTool` returns a video's view/like counts, publish date, description, and related videos, no captions needed.
+- **Check a video's facts without pulling its transcript.** `TranscriptAPIVideoMetadataTool` returns view/like counts, publish date, description, and related videos.
 - **Beyond this package.** `TranscriptAPISearchTool` (`search_type="playlist"`) finds a playlist on a topic; listing that playlist's videos or browsing the channel that made it are REST/MCP operations (`playlist/videos`, `channel/videos`), not part of this package's 3 tools.
 
 ## Tool reference
