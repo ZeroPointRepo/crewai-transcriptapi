@@ -2,10 +2,11 @@
 
 **TranscriptAPI: hosted YouTube transcript + video-discovery API for AI agents.** CrewAI tools edition. Also available as an [n8n community node](https://github.com/ZeroPointRepo/n8n-nodes-transcriptapi), an [MCP server](https://github.com/ZeroPointRepo/youtube-mcp) and [agent skills](https://github.com/ZeroPointRepo/youtube-skills).
 
-This package gives [CrewAI](https://www.crewai.com/) agents two tools over [TranscriptAPI](https://transcriptapi.com):
+This package gives [CrewAI](https://www.crewai.com/) agents three tools over [TranscriptAPI](https://transcriptapi.com):
 
 - **TranscriptAPITool**: fetch the transcript of any YouTube video (full URL, youtu.be, Shorts, or bare ID) as plain text or timestamped JSON, with metadata. The hero tool: 1 credit per call.
-- **TranscriptAPISearchTool**: search YouTube for videos or channels to discover content before fetching transcripts. 1 credit per page.
+- **TranscriptAPISearchTool**: search YouTube for videos, channels, playlists, or movies to discover content before fetching transcripts, with sort/upload-date/duration/feature filters. 1 credit per page.
+- **TranscriptAPIVideoMetadataTool**: pull rich metadata for a video (view/like counts, publish date, description, uploading channel, optional player details and related videos) without spending a transcript credit on captions. 1 credit per call.
 
 ## Installation
 
@@ -29,13 +30,17 @@ export TRANSCRIPTAPI_API_KEY="sk_..."
 
 ```python
 from crewai import Agent
-from crewai_transcriptapi import TranscriptAPITool, TranscriptAPISearchTool
+from crewai_transcriptapi import (
+    TranscriptAPITool,
+    TranscriptAPISearchTool,
+    TranscriptAPIVideoMetadataTool,
+)
 
 researcher = Agent(
     role="Video researcher",
     goal="Find and summarize YouTube content on a topic",
     backstory="Researches spoken video content via transcripts.",
-    tools=[TranscriptAPISearchTool(), TranscriptAPITool()],
+    tools=[TranscriptAPISearchTool(), TranscriptAPITool(), TranscriptAPIVideoMetadataTool()],
 )
 ```
 
@@ -56,11 +61,22 @@ The agent can then search for videos on a topic and fetch each transcript for su
 | Argument | Type | Default | Description |
 |---|---|---|---|
 | `query` | str | required | Search query, 1 to 200 characters |
-| `search_type` | str | `"video"` | `"video"` or `"channel"` |
+| `search_type` | str | `"video"` | `"video"`, `"channel"`, `"playlist"`, or `"movie"` |
+| `sort` | str | none | `"relevance"` or `"views"` |
+| `upload_date` | str | none | `"hour"`, `"today"`, `"week"`, `"month"`, or `"year"` (videos only) |
+| `duration` | str | none | `"short"` (<4m), `"medium"` (4-20m), or `"long"` (>20m) (videos only) |
+| `features` | str | none | Comma-separated filters, e.g. `"hd,subtitles,cc,live,4k,hdr,360,creative_commons"` |
+
+### TranscriptAPIVideoMetadataTool
+
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `video_url` | str | required | Full YouTube URL (watch, youtu.be, embed, Shorts) or bare 11-character video ID |
+| `include` | str | none | Comma-separated extras: `"details"` and/or `"related"` |
 
 ## Response envelope
 
-Both tools return a stable JSON string and never raise:
+All three tools return a stable JSON string and never raise:
 
 ```json
 {"success": true, "data": {"transcript": "...", "metadata": {"title": "..."}}}

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "crewai-transcriptapi"
-version = "0.1.0"
-description = "CrewAI tools for TranscriptAPI: fetch YouTube transcripts and search YouTube videos and channels from CrewAI agents."
+version = "0.2.0"
+description = "CrewAI tools for TranscriptAPI: fetch YouTube transcripts, search YouTube videos/channels/playlists, and pull rich video metadata from CrewAI agents."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
