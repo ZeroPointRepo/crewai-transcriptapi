@@ -4,9 +4,9 @@
 
 This package gives [CrewAI](https://www.crewai.com/) agents three tools over [TranscriptAPI](https://transcriptapi.com):
 
-- **TranscriptAPITool**: fetch the transcript of any YouTube video (full URL, youtu.be, Shorts, or bare ID) as plain text or timestamped JSON, with metadata. The hero tool: 1 credit per call.
+- **TranscriptAPITool**: fetch the transcript of any YouTube video (full URL, youtu.be, Shorts, or bare ID) as plain text or timestamped JSON, with metadata. 1 credit per call.
 - **TranscriptAPISearchTool**: search YouTube for videos, channels, playlists, or movies to discover content before fetching transcripts, with sort/upload-date/duration/feature filters. 1 credit per page.
-- **TranscriptAPIVideoMetadataTool**: pull rich metadata for a video (view/like counts, publish date, description, uploading channel, optional player details and related videos) without spending a transcript credit on captions. 1 credit per call.
+- **TranscriptAPIVideoMetadataTool**: pull video metadata without pulling the transcript
 
 ## Installation
 
