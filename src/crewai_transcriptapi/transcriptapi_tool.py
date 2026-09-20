@@ -1,11 +1,15 @@
 """CrewAI tools for TranscriptAPI (transcriptapi.com).
 
-Two tools following the crewai-tools BaseTool conventions:
+Three tools following the crewai-tools BaseTool conventions:
 
 - TranscriptAPITool: fetch the transcript of a YouTube video (the hero use case)
-- TranscriptAPISearchTool: search YouTube for videos or channels
+- TranscriptAPISearchTool: search YouTube for videos, channels, playlists, or movies
+- TranscriptAPIVideoMetadataTool: rich video metadata (view/like counts, publish
+  date, description, optional player details and related videos) via the
+  /youtube/video/metadata endpoint (the paid replacement for the retired
+  /youtube/video/info path)
 
-Both return a stable JSON string envelope and never leak exceptions:
+All three return a stable JSON string envelope and never leak exceptions:
   {"success": true, "data": {...}}
   {"success": false, "error": {"code": "...", "message": "..."}}
 
@@ -123,8 +127,50 @@ class TranscriptAPISearchToolSchema(BaseModel):
     query: str = Field(..., min_length=1, max_length=200, description="Search query")
     search_type: str = Field(
         default="video",
-        pattern="^(video|channel)$",
-        description='What to search for: "video" or "channel"',
+        pattern="^(video|channel|playlist|movie)$",
+        description='What to search for: "video", "channel", "playlist", or "movie"',
+    )
+    sort: Optional[str] = Field(
+        default=None,
+        pattern="^(relevance|views)$",
+        description='Sort order: "relevance" (default) or "views" (YouTube\'s "Popularity")',
+    )
+    upload_date: Optional[str] = Field(
+        default=None,
+        pattern="^(hour|today|week|month|year)$",
+        description="Upload-date window (videos only): hour, today, week, month, or year",
+    )
+    duration: Optional[str] = Field(
+        default=None,
+        pattern="^(short|medium|long)$",
+        description="Duration bucket (videos only): short (<4m), medium (4-20m), or long (>20m)",
+    )
+    features: Optional[str] = Field(
+        default=None,
+        description=(
+            "Comma-separated feature filters, e.g. 'hd,subtitles,cc,live,4k,hdr,360,"
+            "creative_commons'"
+        ),
+    )
+
+
+class TranscriptAPIVideoMetadataToolSchema(BaseModel):
+    """Input for TranscriptAPIVideoMetadataTool."""
+
+    video_url: str = Field(
+        ...,
+        min_length=6,
+        description=(
+            "Full YouTube URL (watch, youtu.be, embed, or Shorts) or the bare "
+            "11-character video ID"
+        ),
+    )
+    include: Optional[str] = Field(
+        default=None,
+        description=(
+            "Comma-separated extras: 'details' (duration, category, tags, caption "
+            "tracks) and/or 'related' (related videos)"
+        ),
     )
 
 
@@ -164,11 +210,13 @@ if BaseTool is not None:
         model_config = ConfigDict(arbitrary_types_allowed=True)
         name: str = "TranscriptAPI YouTube Search"
         description: str = (
-            "Searches YouTube for videos or channels via the TranscriptAPI "
-            "service and returns titles, IDs, thumbnails, view counts and "
-            "publish dates. Use when the task needs to discover videos or "
-            "channels about a topic before fetching transcripts. Costs 1 credit "
-            "per page of results."
+            "Searches YouTube for videos, channels, playlists, or movies via the "
+            "TranscriptAPI service and returns titles, IDs, thumbnails, view "
+            "counts and publish dates. Supports sorting by relevance or views, "
+            "and (for video search) filtering by upload-date window, duration "
+            "bucket, or feature (hd, subtitles, live, etc). Use when the task "
+            "needs to discover content about a topic before fetching "
+            "transcripts. Costs 1 credit per page of results."
         )
         args_schema: Type[BaseModel] = TranscriptAPISearchToolSchema
         package_dependencies: list = Field(default_factory=lambda: ["requests"])
@@ -178,5 +226,38 @@ if BaseTool is not None:
             args = TranscriptAPISearchToolSchema(**kwargs)
             return _request(
                 "/youtube/search",
-                {"q": args.query, "type": args.search_type},
+                {
+                    "q": args.query,
+                    "type": args.search_type,
+                    "sort": args.sort,
+                    "upload_date": args.upload_date,
+                    "duration": args.duration,
+                    "features": args.features,
+                },
+            )
+
+    class TranscriptAPIVideoMetadataTool(BaseTool):
+        """Fetch rich metadata for a YouTube video via TranscriptAPI."""
+
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        name: str = "TranscriptAPI YouTube Video Metadata"
+        description: str = (
+            "Fetches rich metadata for a YouTube video via the TranscriptAPI "
+            "service, without needing captions: title, view/like-count text, "
+            "publish date, a structured description with extracted links, the "
+            "uploading channel's summary, and thumbnails. Optionally include "
+            "player-sourced 'details' (duration, category, tags, caption-track "
+            "inventory) and/or 'related' videos. Use when the task needs facts "
+            "about a video rather than its spoken content. Costs 1 credit per "
+            "call regardless of which extras are requested."
+        )
+        args_schema: Type[BaseModel] = TranscriptAPIVideoMetadataToolSchema
+        package_dependencies: list = Field(default_factory=lambda: ["requests"])
+        env_vars: list = Field(default_factory=lambda: list(_ENV_VARS))
+
+        def _run(self, **kwargs: Any) -> str:
+            args = TranscriptAPIVideoMetadataToolSchema(**kwargs)
+            return _request(
+                "/youtube/video/metadata",
+                {"video_url": args.video_url, "include": args.include},
             )

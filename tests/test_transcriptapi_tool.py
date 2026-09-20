@@ -48,6 +48,8 @@ from crewai_transcriptapi.transcriptapi_tool import (  # noqa: E402
     TranscriptAPISearchToolSchema,
     TranscriptAPITool,
     TranscriptAPIToolSchema,
+    TranscriptAPIVideoMetadataTool,
+    TranscriptAPIVideoMetadataToolSchema,
 )
 
 
@@ -80,7 +82,34 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaises(Exception):
             TranscriptAPISearchToolSchema(query="")
         with self.assertRaises(Exception):
-            TranscriptAPISearchToolSchema(query="x", search_type="playlist")
+            TranscriptAPISearchToolSchema(query="x", search_type="bogus")
+
+    def test_search_schema_accepts_new_types_and_filters(self):
+        for t in ("video", "channel", "playlist", "movie"):
+            TranscriptAPISearchToolSchema(query="x", search_type=t)
+        s = TranscriptAPISearchToolSchema(
+            query="x", sort="views", upload_date="week", duration="long", features="hd,cc"
+        )
+        self.assertEqual(s.sort, "views")
+        self.assertEqual(s.upload_date, "week")
+        self.assertEqual(s.duration, "long")
+        self.assertEqual(s.features, "hd,cc")
+
+    def test_search_schema_rejects_bad_filters(self):
+        with self.assertRaises(Exception):
+            TranscriptAPISearchToolSchema(query="x", sort="popularity")
+        with self.assertRaises(Exception):
+            TranscriptAPISearchToolSchema(query="x", upload_date="decade")
+        with self.assertRaises(Exception):
+            TranscriptAPISearchToolSchema(query="x", duration="epic")
+
+    def test_video_metadata_schema_requires_video_url(self):
+        with self.assertRaises(Exception):
+            TranscriptAPIVideoMetadataToolSchema()
+
+    def test_video_metadata_schema_defaults(self):
+        s = TranscriptAPIVideoMetadataToolSchema(video_url="dQw4w9WgXcQ")
+        self.assertIsNone(s.include)
 
 
 class EnvTests(unittest.TestCase):
@@ -169,6 +198,87 @@ class SearchToolTests(unittest.TestCase):
         )
         self.assertEqual(getter.call_args.kwargs["params"]["q"], "machine learning")
         self.assertEqual(getter.call_args.kwargs["params"]["type"], "channel")
+
+    def test_search_request_with_filters(self):
+        resp = _fake_response(payload={"results": []})
+        with mock.patch.dict(os.environ, {"TRANSCRIPTAPI_API_KEY": "sk_test"}, clear=True):
+            with mock.patch("requests.get", return_value=resp) as getter:
+                out = json.loads(
+                    TranscriptAPISearchTool().run(
+                        query="innovation",
+                        search_type="video",
+                        sort="views",
+                        upload_date="month",
+                        duration="long",
+                        features="hd,cc",
+                    )
+                )
+        self.assertTrue(out["success"])
+        params = getter.call_args.kwargs["params"]
+        self.assertEqual(params["sort"], "views")
+        self.assertEqual(params["upload_date"], "month")
+        self.assertEqual(params["duration"], "long")
+        self.assertEqual(params["features"], "hd,cc")
+
+    def test_search_optional_filters_omitted_when_unset(self):
+        resp = _fake_response(payload={"results": []})
+        with mock.patch.dict(os.environ, {"TRANSCRIPTAPI_API_KEY": "sk_test"}, clear=True):
+            with mock.patch("requests.get", return_value=resp) as getter:
+                TranscriptAPISearchTool().run(query="innovation")
+        params = getter.call_args.kwargs["params"]
+        for key in ("sort", "upload_date", "duration", "features"):
+            self.assertNotIn(key, params)
+
+    def test_search_accepts_playlist_and_movie_types(self):
+        resp = _fake_response(payload={"results": []})
+        with mock.patch.dict(os.environ, {"TRANSCRIPTAPI_API_KEY": "sk_test"}, clear=True):
+            with mock.patch("requests.get", return_value=resp) as getter:
+                TranscriptAPISearchTool().run(query="x", search_type="playlist")
+        self.assertEqual(getter.call_args.kwargs["params"]["type"], "playlist")
+
+
+class VideoMetadataToolTests(unittest.TestCase):
+    def test_metadata_request_and_envelope(self):
+        resp = _fake_response(payload={"videoId": "dQw4w9WgXcQ", "title": "..."})
+        with mock.patch.dict(os.environ, {"TRANSCRIPTAPI_API_KEY": "sk_test"}, clear=True):
+            with mock.patch("requests.get", return_value=resp) as getter:
+                out = json.loads(
+                    TranscriptAPIVideoMetadataTool().run(video_url="dQw4w9WgXcQ")
+                )
+        self.assertTrue(out["success"])
+        self.assertEqual(
+            getter.call_args.args[0],
+            "https://transcriptapi.com/api/v2/youtube/video/metadata",
+        )
+        self.assertEqual(getter.call_args.kwargs["params"]["video_url"], "dQw4w9WgXcQ")
+        self.assertNotIn("include", getter.call_args.kwargs["params"])
+
+    def test_metadata_request_with_include(self):
+        resp = _fake_response(payload={"videoId": "dQw4w9WgXcQ", "details": {}})
+        with mock.patch.dict(os.environ, {"TRANSCRIPTAPI_API_KEY": "sk_test"}, clear=True):
+            with mock.patch("requests.get", return_value=resp) as getter:
+                out = json.loads(
+                    TranscriptAPIVideoMetadataTool().run(
+                        video_url="dQw4w9WgXcQ", include="details,related"
+                    )
+                )
+        self.assertTrue(out["success"])
+        self.assertEqual(getter.call_args.kwargs["params"]["include"], "details,related")
+
+    def test_metadata_missing_key_returns_envelope(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            out = json.loads(TranscriptAPIVideoMetadataTool().run(video_url="dQw4w9WgXcQ"))
+        self.assertFalse(out["success"])
+        self.assertEqual(out["error"]["code"], "missing_api_key")
+
+    def test_metadata_402_maps_to_out_of_credits(self):
+        with mock.patch.dict(os.environ, {"TRANSCRIPTAPI_API_KEY": "sk_test"}, clear=True):
+            with mock.patch("requests.get", return_value=_fake_response(status=402)):
+                out = json.loads(
+                    TranscriptAPIVideoMetadataTool().run(video_url="dQw4w9WgXcQ")
+                )
+        self.assertFalse(out["success"])
+        self.assertEqual(out["error"]["code"], "out_of_credits")
 
 
 if __name__ == "__main__":
